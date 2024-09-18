@@ -1,7 +1,6 @@
 package com.hhplus.hhplusqueueservice.support.utils;
 
 import com.hhplus.hhplusqueueservice.domain.common.exception.CustomException;
-import com.hhplus.hhplusqueueservice.domain.queue.WaitingQueueRepository;
 import com.hhplus.hhplusqueueservice.infra.redis.RedisRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -33,7 +32,6 @@ public class JwtUtils {
     // 토큰 유효시간 1시간
     public static final long EXP_TIME = 60 * 60 * 1000L;
 
-    private final WaitingQueueRepository waitingQueueRepository;
     private final RedisRepository redisRepository;
 
     /**
@@ -102,7 +100,7 @@ public class JwtUtils {
      * @param token JWT 토큰 정보
      */
     private void changeTokenStatus(String token) {
-        waitingQueueRepository.deleteExpiredToken(token);
+        redisRepository.deleteKey(ACTIVE_KEY + ":" + token);
     }
 
     /**

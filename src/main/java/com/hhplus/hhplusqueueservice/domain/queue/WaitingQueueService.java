@@ -1,9 +1,12 @@
 package com.hhplus.hhplusqueueservice.domain.queue;
 
+import com.hhplus.hhplusqueueservice.domain.event.PaymentEvent;
 import com.hhplus.hhplusqueueservice.domain.queue.command.WaitingQueueCommand;
 import com.hhplus.hhplusqueueservice.support.aop.DistributedLock;
 import com.hhplus.hhplusqueueservice.support.utils.JwtUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +20,12 @@ import static com.hhplus.hhplusqueueservice.domain.queue.WaitingQueueConstants.E
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WaitingQueueService {
 
     private final JwtUtils jwtUtils;
     private final WaitingQueueRepository waitingQueueRepository;
+    private final ApplicationEventPublisher publisher;
 
     /**
      * 토큰의 활성화 여부를 체크하여 토큰 대기열 정보를 반환한다.
@@ -96,9 +101,18 @@ public class WaitingQueueService {
     /**
      * 강제로 active token 을 만료시킨다.
      *
-     * @param token token 정보
+     * @param command token 정보
      */
-    public void forceExpireToken(String token) {
-        waitingQueueRepository.deleteExpiredToken(token);
+    @Transactional
+    public void forceExpireToken(WaitingQueueCommand.Expire command) {
+        try {
+            waitingQueueRepository.deleteExpiredToken(command.token());
+            // 최종 결제 완료를 위한 이벤트 발행
+//            publisher.publishEvent(new PaymentEvent(this, command.reservationId(), command.userId(), command.paymentId(),
+//                    command.token(), command.amount(), PaymentEvent.EventConstants.TOKEN_EXPIRED));
+            publisher.publishEvent(new PaymentEvent(this, command.paymentId(), PaymentEvent.EventConstants.TOKEN_EXPIRED));
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
     }
 }
